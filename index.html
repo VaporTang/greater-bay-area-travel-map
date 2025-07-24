@@ -57,11 +57,24 @@
         }
 
         .map-container {
-            background: white;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 30px;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .map-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23ffffff" opacity="0.05"/><circle cx="75" cy="75" r="1" fill="%23ffffff" opacity="0.05"/><circle cx="50" cy="10" r="0.5" fill="%23ffffff" opacity="0.03"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
         }
 
         .map-container h2 {
@@ -75,6 +88,86 @@
             height: 500px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Custom map marker styles */
+        .custom-marker {
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: 3px solid white;
+            width: 30px;
+            height: 30px;
+        }
+
+        .custom-marker:hover {
+            transform: scale(1.2);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .marker-day1 { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        .marker-day2 { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .marker-day3 { background: linear-gradient(45deg, #f39c12, #e67e22); }
+        .marker-day4 { background: linear-gradient(45deg, #27ae60, #229954); }
+
+        /* Remove animated polyline effect */
+        .route-line {
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Custom popup styling */
+        .leaflet-popup-content-wrapper {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .leaflet-popup-content {
+            margin: 15px 20px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .leaflet-popup-tip {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        /* Improve map controls styling */
+        .map-controls {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .map-controls button {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 3px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .map-controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         }
 
         .timeline {
@@ -602,11 +695,22 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     // 初始化地图
-    var map = L.map('map').setView([22.3964, 114.1095], 8);
+    var map = L.map('map', {
+        zoomControl: true,
+        attributionControl: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        dragging: true,
+        touchZoom: true
+    }).setView([22.3964, 114.1095], 8);
 
-    // 添加地图图层
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+    // 添加优美的地图图层 - 使用 CartoDB 的深色主题
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
     }).addTo(map);
 
     // 定义关键地点
@@ -637,13 +741,25 @@
         dongmen: [22.5457, 114.1189]
     };
 
-    // 创建自定义图标
-    function createIcon(color) {
+    // 创建增强的自定义图标
+    function createEnhancedIcon(color, dayClass, dayNumber) {
         return L.divIcon({
-            html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+            html: `<div class="custom-marker ${dayClass}">${dayNumber}</div>`,
             className: 'custom-div-icon',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+            popupAnchor: [0, -15]
+        });
+    }
+
+    // 创建清晰的路线（移除虚线动画）
+    function createClearRoute(coordinates, color) {
+        return L.polyline(coordinates, {
+            color: color,
+            weight: 5,
+            opacity: 0.9,
+            smoothFactor: 2,
+            className: 'route-line'
         });
     }
 
@@ -656,18 +772,18 @@
         locations.tsimshatsui
     ];
 
-    var day1Line = L.polyline(day1Route, {color: '#e74c3c', weight: 4, opacity: 0.8}).addTo(map);
+    var day1Line = createClearRoute(day1Route, '#e74c3c').addTo(map);
 
     // 第二天路线 (蓝色)
     var day2Route = [
         locations.hongkongHotel,
-        locations.ngongping, // 或 peakTram
+        locations.ngongping,
         locations.hkzhBridge,
         locations.macauBridge,
         locations.macauHotel
     ];
 
-    var day2Line = L.polyline(day2Route, {color: '#3498db', weight: 4, opacity: 0.8}).addTo(map);
+    var day2Line = createClearRoute(day2Route, '#3498db').addTo(map);
 
     // 第三天路线 (橙色)
     var day3Route = [
@@ -678,7 +794,7 @@
         locations.zhuhai
     ];
 
-    var day3Line = L.polyline(day3Route, {color: '#f39c12', weight: 4, opacity: 0.8}).addTo(map);
+    var day3Line = createClearRoute(day3Route, '#f39c12').addTo(map);
 
     // 第四天路线 (绿色)
     var day4Route = [
@@ -689,40 +805,114 @@
         locations.shenzhenEast
     ];
 
-    var day4Line = L.polyline(day4Route, {color: '#27ae60', weight: 4, opacity: 0.8}).addTo(map);
+    var day4Line = createClearRoute(day4Route, '#27ae60').addTo(map);
 
-    // 添加标记点
+    // 添加增强的标记点
     var markers = [
-        {pos: locations.shenzhenEast, popup: '深圳东站<br>07:28 抵达', icon: createIcon('#e74c3c')},
-        {pos: locations.luohu, popup: '罗湖口岸<br>通关进入香港', icon: createIcon('#e74c3c')},
-        {pos: locations.hongkongHotel, popup: '荃湾帝盛酒店<br>第一晚住宿', icon: createIcon('#e74c3c')},
-        {pos: locations.mongkok, popup: '旺角<br>购买拍立得相纸', icon: createIcon('#e74c3c')},
-        {pos: locations.tsimshatsui, popup: '尖沙咀<br>维港夜景+庙街', icon: createIcon('#e74c3c')},
+        {pos: locations.shenzhenEast, popup: '<strong>🚄 深圳东站</strong><br>07:28 抵达<br><em>旅程起点</em>', icon: createEnhancedIcon('#e74c3c', 'marker-day1', '1'), day: 1},
+        {pos: locations.luohu, popup: '<strong>🛂 罗湖口岸</strong><br>E-通道快速通关<br><em>进入香港</em>', icon: createEnhancedIcon('#e74c3c', 'marker-day1', '1'), day: 1},
+        {pos: locations.hongkongHotel, popup: '<strong>🏨 荃湾帝盛酒店</strong><br>第一晚住宿<br><em>香港之夜</em>', icon: createEnhancedIcon('#e74c3c', 'marker-day1', '1'), day: 1},
+        {pos: locations.mongkok, popup: '<strong>🛍️ 旺角</strong><br>购买拍立得相纸<br><em>购物天堂</em>', icon: createEnhancedIcon('#e74c3c', 'marker-day1', '1'), day: 1},
+        {pos: locations.tsimshatsui, popup: '<strong>🌃 尖沙咀</strong><br>维港夜景 + 庙街<br><em>香港经典</em>', icon: createEnhancedIcon('#e74c3c', 'marker-day1', '1'), day: 1},
 
-        {pos: locations.ngongping, popup: '昂坪360<br>天坛大佛', icon: createIcon('#3498db')},
-        {pos: locations.peakTram, popup: '太平山顶<br>山顶缆车', icon: createIcon('#3498db')},
-        {pos: locations.hkzhBridge, popup: '港珠澳大桥<br>跨海前往澳门', icon: createIcon('#3498db')},
-        {pos: locations.macauHotel, popup: '五洋酒店<br>澳门住宿', icon: createIcon('#3498db')},
+        {pos: locations.ngongping, popup: '<strong>🏔️ 昂坪360</strong><br>天坛大佛<br><em>心灵净土</em>', icon: createEnhancedIcon('#3498db', 'marker-day2', '2'), day: 2},
+        {pos: locations.peakTram, popup: '<strong>🚡 太平山顶</strong><br>山顶缆车<br><em>都市之巅</em>', icon: createEnhancedIcon('#3498db', 'marker-day2', '2'), day: 2},
+        {pos: locations.hkzhBridge, popup: '<strong>🌉 港珠澳大桥</strong><br>跨海前往澳门<br><em>工程奇迹</em>', icon: createEnhancedIcon('#3498db', 'marker-day2', '2'), day: 2},
+        {pos: locations.macauHotel, popup: '<strong>🏨 五洋酒店</strong><br>澳门住宿<br><em>濠江之夜</em>', icon: createEnhancedIcon('#3498db', 'marker-day2', '2'), day: 2},
 
-        {pos: locations.senado, popup: '议事亭前地<br>历史城区', icon: createIcon('#f39c12')},
-        {pos: locations.cotai, popup: '路氹金光大道<br>威尼斯人+巴黎人', icon: createIcon('#f39c12')},
-        {pos: locations.gongbei, popup: '拱北口岸<br>进入珠海', icon: createIcon('#f39c12')},
-        {pos: locations.zhuhai, popup: '珠海如家商旅<br>第三晚住宿', icon: createIcon('#f39c12')},
+        {pos: locations.senado, popup: '<strong>🏛️ 议事亭前地</strong><br>世界文化遗产<br><em>东西交融</em>', icon: createEnhancedIcon('#f39c12', 'marker-day3', '3'), day: 3},
+        {pos: locations.cotai, popup: '<strong>✨ 路氹金光大道</strong><br>威尼斯人 + 巴黎人<br><em>奢华体验</em>', icon: createEnhancedIcon('#f39c12', 'marker-day3', '3'), day: 3},
+        {pos: locations.gongbei, popup: '<strong>🛂 拱北口岸</strong><br>进入珠海<br><em>回归内地</em>', icon: createEnhancedIcon('#f39c12', 'marker-day3', '3'), day: 3},
+        {pos: locations.zhuhai, popup: '<strong>🏨 珠海如家商旅</strong><br>第三晚住宿<br><em>浪漫之城</em>', icon: createEnhancedIcon('#f39c12', 'marker-day3', '3'), day: 3},
 
-        {pos: locations.jiuzhouPort, popup: '九洲港<br>前往深圳', icon: createIcon('#27ae60')},
-        {pos: locations.shekou, popup: '蛇口邮轮母港<br>海上世界', icon: createIcon('#27ae60')},
-        {pos: locations.dongmen, popup: '东门步行街<br>深圳美食', icon: createIcon('#27ae60')}
+        {pos: locations.jiuzhouPort, popup: '<strong>⛵ 九洲港</strong><br>海上航线起点<br><em>乘风破浪</em>', icon: createEnhancedIcon('#27ae60', 'marker-day4', '4'), day: 4},
+        {pos: locations.shekou, popup: '<strong>🚢 蛇口邮轮母港</strong><br>海上世界文化艺术中心<br><em>艺术殿堂</em>', icon: createEnhancedIcon('#27ae60', 'marker-day4', '4'), day: 4},
+        {pos: locations.dongmen, popup: '<strong>🍜 东门步行街</strong><br>深圳美食巡礼<br><em>舌尖盛宴</em>', icon: createEnhancedIcon('#27ae60', 'marker-day4', '4'), day: 4}
     ];
 
-    markers.forEach(function(marker) {
-        L.marker(marker.pos, {icon: marker.icon})
-            .bindPopup(marker.popup)
+    markers.forEach(function(marker, index) {
+        var leafletMarker = L.marker(marker.pos, {icon: marker.icon})
+            .bindPopup(marker.popup, {
+                closeButton: true,
+                autoClose: false,
+                className: 'custom-popup'
+            })
             .addTo(map);
+
+        // 添加标记点击动画效果
+        leafletMarker.on('mouseover', function(e) {
+            var element = e.target.getElement();
+            if (element) {
+                element.style.transform = 'scale(1.2)';
+                element.style.zIndex = '1000';
+            }
+        });
+
+        leafletMarker.on('mouseout', function(e) {
+            var element = e.target.getElement();
+            if (element) {
+                element.style.transform = 'scale(1)';
+                element.style.zIndex = 'auto';
+            }
+        });
+    });
+
+    // 添加路线标签
+    var routeLabels = [
+        {pos: [22.45, 114.15], content: "第一天", color: "#e74c3c"},
+        {pos: [22.25, 113.95], content: "第二天", color: "#3498db"},
+        {pos: [22.19, 113.54], content: "第三天", color: "#f39c12"},
+        {pos: [22.35, 113.75], content: "第四天", color: "#27ae60"}
+    ];
+
+    routeLabels.forEach(function(label) {
+        L.marker(label.pos, {
+            icon: L.divIcon({
+                html: `<div style="background: ${label.color}; color: white; padding: 8px 12px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 13px; white-space: nowrap; border: 2px solid white;">${label.content}</div>`,
+                className: 'route-label',
+                iconSize: [70, 25],
+                iconAnchor: [35, 12]
+            })
+        }).addTo(map);
     });
 
     // 调整地图视野以包含所有标记
     var group = new L.featureGroup([day1Line, day2Line, day3Line, day4Line]);
     map.fitBounds(group.getBounds().pad(0.1));
+
+    // 添加地图控制按钮
+    var mapControls = L.control({position: 'topright'});
+    mapControls.onAdd = function(map) {
+        var div = L.DomUtil.create('div', 'map-controls');
+        div.innerHTML = `
+            <button onclick="focusDay(1)" style="background: #e74c3c;">第一天</button>
+            <button onclick="focusDay(2)" style="background: #3498db;">第二天</button>
+            <button onclick="focusDay(3)" style="background: #f39c12;">第三天</button>
+            <button onclick="focusDay(4)" style="background: #27ae60;">第四天</button>
+            <button onclick="resetView()" style="background: #34495e;">全览</button>
+        `;
+        return div;
+    };
+    mapControls.addTo(map);
+
+    // 聚焦特定天数的函数
+    window.focusDay = function(day) {
+        var routes = [day1Line, day2Line, day3Line, day4Line];
+        var selectedRoute = routes[day - 1];
+        map.fitBounds(selectedRoute.getBounds().pad(0.2));
+        
+        // 临时高亮效果
+        selectedRoute.setStyle({weight: 8, opacity: 1});
+        setTimeout(function() {
+            selectedRoute.setStyle({weight: 5, opacity: 0.9});
+        }, 2000);
+    };
+
+    // 重置视图函数
+    window.resetView = function() {
+        var group = new L.featureGroup([day1Line, day2Line, day3Line, day4Line]);
+        map.fitBounds(group.getBounds().pad(0.1));
+    };
 </script>
 </body>
 </html>
